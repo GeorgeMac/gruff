@@ -23,28 +23,33 @@ type BarPrinter struct {
 	stop                      chan struct{}
 }
 
-func NewBarPrinter(width, height, top, sides int, norm Normaliser) *BarPrinter {
+func NewBarPrinter(width, height int, opts ...Option) *BarPrinter {
 	writer := &lineWriter{Writer: bufio.NewWriter(os.Stdout)}
 	colorer := color.New(color.BgBlue)
 	color.Output = writer
 
-	if norm == nil {
-		norm = func(f float64) func(float64) int {
-			return func(f float64) int { return int(math.Floor(f)) }
-		}
+	norm := func(f float64) func(float64) int {
+		return func(f float64) int { return int(math.Floor(f)) }
 	}
 
-	return &BarPrinter{
+	printer := &BarPrinter{
 		vals:   make([]float64, 0),
-		width:  width - (sides * 2) - 2,
 		height: height,
-		top:    top,
-		sides:  sides,
+		top:    5,
+		sides:  10,
 		color:  colorer,
 		writer: writer,
 		norm:   norm,
 		stop:   make(chan struct{}),
 	}
+
+	for _, opt := range opts {
+		opt(printer)
+	}
+
+	printer.width = width - (printer.sides * 2) - 2
+
+	return printer
 }
 
 func (b *BarPrinter) Feed(c <-chan float64) {

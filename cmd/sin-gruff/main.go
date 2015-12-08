@@ -26,8 +26,7 @@ func main() {
 
 	stop := make(chan struct{})
 	floats := make(chan float64)
-	normaliser := printer.NewBasicNormaliser(float64(height))
-	printer := printer.NewBarPrinter(w, height, 5, 10, normaliser.Next)
+	printer := printer.NewBarPrinter(w, height, printer.Padding(5, 10), printer.Normalise)
 	go printer.Feed(floats)
 
 	go func() {
