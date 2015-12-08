@@ -3,54 +3,67 @@ package printer
 import (
 	"bufio"
 	"fmt"
+	"math"
 	"os"
 	"strings"
 
 	"github.com/fatih/color"
 )
 
+type Normaliser func(f float64) func(float64) int
+
 type BarPrinter struct {
-	vals                      []int
+	vals                      []float64
 	color                     *color.Color
 	writer                    *lineWriter
 	width, height, top, sides int
 	coloured                  bool
+	norm                      Normaliser
+	curNorm                   func(float64) int
 	stop                      chan struct{}
 }
 
-func NewBarPrinter(width, height, top, sides int) *BarPrinter {
+func NewBarPrinter(width, height, top, sides int, norm Normaliser) *BarPrinter {
 	writer := &lineWriter{Writer: bufio.NewWriter(os.Stdout)}
 	colorer := color.New(color.BgBlue)
 	color.Output = writer
 
+	if norm == nil {
+		norm = func(f float64) func(float64) int {
+			return func(f float64) int { return int(math.Floor(f)) }
+		}
+	}
+
 	return &BarPrinter{
-		vals:   make([]int, 0),
+		vals:   make([]float64, 0),
 		width:  width - (sides * 2) - 2,
 		height: height,
 		top:    top,
 		sides:  sides,
 		color:  colorer,
 		writer: writer,
+		norm:   norm,
 		stop:   make(chan struct{}),
 	}
 }
 
-func (b *BarPrinter) Feed(c <-chan int) {
+func (b *BarPrinter) Feed(c <-chan float64) {
 	for {
 		select {
-		case n, ok := <-c:
+		case <-b.stop:
+			return
+		case f, ok := <-c:
 			if !ok {
 				close(b.stop)
 				return
 			}
-			b.AdvanceN(n)
-		case <-b.stop:
-			return
+			b.Advance(f)
 		}
 	}
 }
 
-func (b *BarPrinter) AdvanceN(count int) {
+func (b *BarPrinter) Advance(count float64) {
+	b.curNorm = b.norm(count)
 	if len(b.vals) > b.width {
 		b.vals = append(b.vals[1:], count)
 	} else {
@@ -108,7 +121,7 @@ func (b *BarPrinter) printChar(row, col int) {
 
 func (b *BarPrinter) isOn(row, col int) bool {
 	diff := b.width - len(b.vals)
-	return (col >= diff) && (row > (b.height - b.vals[col-diff]))
+	return (col >= diff) && (row > (b.height - b.curNorm(b.vals[col-diff])))
 }
 
 func (b *BarPrinter) printBlock(n int) {

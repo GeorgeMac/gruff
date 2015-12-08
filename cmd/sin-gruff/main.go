@@ -25,9 +25,10 @@ func main() {
 	}
 
 	stop := make(chan struct{})
-	ints := make(chan int)
-	printer := printer.NewBarPrinter(w, height, 5, 10)
-	go printer.Feed(ints)
+	floats := make(chan float64)
+	normaliser := printer.NewBasicNormaliser(float64(height))
+	printer := printer.NewBarPrinter(w, height, 5, 10, normaliser.Next)
+	go printer.Feed(floats)
 
 	go func() {
 		reader := bufio.NewReader(os.Stdin)
@@ -41,8 +42,8 @@ func main() {
 
 	go func() {
 		for i := 0; i < duration; i++ {
-			count := math.Floor(math.Sin(float64(i)/float64(height))*(float64(height)/2)) + (float64(height) / 2)
-			ints <- int(count)
+			count := math.Sin(float64(i) / float64(height))
+			floats <- count
 			time.Sleep(10 * time.Millisecond)
 		}
 		close(stop)
