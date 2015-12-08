@@ -1,14 +1,14 @@
-package printer
+package gruff
 
-type Option func(*BarPrinter)
+type Option func(*Printer)
 
-func Normalise(b *BarPrinter) {
+func Normalise(b *Printer) {
 	normalise := NewBasicNormaliser(float64(b.height))
 	b.norm = normalise.Next
 }
 
 func Padding(topBottom, leftRight int) Option {
-	return func(b *BarPrinter) {
+	return func(b *Printer) {
 		b.top = topBottom
 		b.sides = leftRight
 	}

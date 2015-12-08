@@ -8,7 +8,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/GeorgeMac/gruff/lib/printer"
+	"github.com/GeorgeMac/gruff"
 	"github.com/fatih/color"
 	"golang.org/x/crypto/ssh/terminal"
 )
@@ -26,8 +26,8 @@ func main() {
 
 	stop := make(chan struct{})
 	floats := make(chan float64)
-	printer := printer.NewBarPrinter(w, height, printer.Padding(5, 10), printer.Normalise)
-	go printer.Feed(floats)
+	gruff := gruff.New(w, height, gruff.Padding(5, 10), gruff.Normalise)
+	go gruff.Feed(floats)
 
 	go func() {
 		reader := bufio.NewReader(os.Stdin)
@@ -35,7 +35,7 @@ func main() {
 		for quit != 'q' && quit != 'Q' {
 			quit, _, _ = reader.ReadRune()
 		}
-		printer.Stop()
+		gruff.Stop()
 		stop <- struct{}{}
 	}()
 
