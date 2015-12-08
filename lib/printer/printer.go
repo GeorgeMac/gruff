@@ -10,32 +10,28 @@ import (
 )
 
 type BarPrinter struct {
-	representation        [][]bool
-	color                 *color.Color
-	writer                *lineWriter
-	height, top, sides    int
-	shouldClear, coloured bool
-	stop                  chan struct{}
+	vals                      []int
+	color                     *color.Color
+	writer                    *lineWriter
+	width, height, top, sides int
+	shouldClear, coloured     bool
+	stop                      chan struct{}
 }
 
 func NewBarPrinter(width, height, top, sides int) *BarPrinter {
-	representation := make([][]bool, width-(sides*2)-2)
-	for i := 0; i < len(representation); i++ {
-		representation[i] = make([]bool, height)
-	}
-
 	writer := &lineWriter{Writer: bufio.NewWriter(os.Stdout)}
 	colorer := color.New(color.BgBlue)
 	color.Output = writer
 
 	return &BarPrinter{
-		representation: representation,
-		height:         height,
-		top:            top,
-		sides:          sides,
-		color:          colorer,
-		writer:         writer,
-		stop:           make(chan struct{}),
+		vals:   make([]int, 0),
+		width:  width - (sides * 2) - 2,
+		height: height,
+		top:    top,
+		sides:  sides,
+		color:  colorer,
+		writer: writer,
+		stop:   make(chan struct{}),
 	}
 }
 
@@ -50,16 +46,7 @@ func (b *BarPrinter) Feed(c chan int) {
 }
 
 func (b *BarPrinter) AdvanceN(count int) {
-	diff := b.height - count
-	bar := make([]bool, b.height)
-	for j := 0; j < len(bar); j++ {
-		bar[j] = j >= diff
-	}
-	b.Advance(bar)
-}
-
-func (b *BarPrinter) Advance(bar []bool) {
-	b.representation = append(b.representation[1:], bar[0:b.height])
+	b.vals = append(b.vals, count)
 	b.render()
 }
 
@@ -85,20 +72,25 @@ func (b *BarPrinter) printAllLines() {
 
 func (b *BarPrinter) printLine(i int) {
 	b.printer(false).Printf("%s|", strings.Repeat(" ", b.sides))
-	for j := 0; j < len(b.representation); j++ {
-		b.printChar(j, i)
+	for j := 0; j < b.width; j++ {
+		b.printChar(i, j)
 	}
 	b.printer(false).Printf("|%s", strings.Repeat(" ", b.sides))
 	b.writer.commitLine()
 }
 
-func (b *BarPrinter) printChar(x, y int) {
-	bar := b.representation[x]
+func (b *BarPrinter) printChar(row, col int) {
+	on := b.isOn(row, col)
 	toPrint := " "
-	if y+1 < len(bar) && bar[y] != bar[y+1] {
+	if !on && b.isOn(row+1, col) {
 		toPrint = "_"
 	}
-	b.printer(bar[y]).Print(toPrint)
+	b.printer(on).Print(toPrint)
+}
+
+func (b *BarPrinter) isOn(row, col int) bool {
+	diff := b.width - len(b.vals)
+	return (col >= diff) && (row > (b.height - b.vals[col-diff]))
 }
 
 func (b *BarPrinter) render() {
@@ -118,7 +110,7 @@ func (b *BarPrinter) printBlock(n int) {
 }
 
 func (b *BarPrinter) printRule(c string) {
-	b.printer(false).Printf("%s%s%s", strings.Repeat(" ", b.sides+1), strings.Repeat(c, len(b.representation)), strings.Repeat(" ", b.sides+1))
+	b.printer(false).Printf("%s%s%s", strings.Repeat(" ", b.sides+1), strings.Repeat(c, b.width), strings.Repeat(" ", b.sides+1))
 	b.writer.commitLine()
 }
 
