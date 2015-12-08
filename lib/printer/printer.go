@@ -14,7 +14,7 @@ type BarPrinter struct {
 	color                     *color.Color
 	writer                    *lineWriter
 	width, height, top, sides int
-	shouldClear, coloured     bool
+	coloured                  bool
 	stop                      chan struct{}
 }
 
@@ -35,23 +35,41 @@ func NewBarPrinter(width, height, top, sides int) *BarPrinter {
 	}
 }
 
-func (b *BarPrinter) Feed(c chan int) {
+func (b *BarPrinter) Feed(c <-chan int) {
 	for {
 		select {
-		case n := <-c:
+		case n, ok := <-c:
+			if !ok {
+				close(b.stop)
+				return
+			}
 			b.AdvanceN(n)
 		case <-b.stop:
+			return
 		}
 	}
 }
 
 func (b *BarPrinter) AdvanceN(count int) {
-	b.vals = append(b.vals, count)
+	if len(b.vals) > b.width {
+		b.vals = append(b.vals[1:], count)
+	} else {
+		b.vals = append(b.vals, count)
+	}
 	b.render()
 }
 
 func (b *BarPrinter) Stop() {
 	b.stop <- struct{}{}
+}
+
+func (b *BarPrinter) render() {
+	b.printBlock(b.top)
+	b.printRule("_")
+	b.printAllLines()
+	b.printRule("_")
+	b.printBlock(b.top)
+	b.writer.Flush()
 }
 
 func (b *BarPrinter) printer(coloured bool) *color.Color {
@@ -91,15 +109,6 @@ func (b *BarPrinter) printChar(row, col int) {
 func (b *BarPrinter) isOn(row, col int) bool {
 	diff := b.width - len(b.vals)
 	return (col >= diff) && (row > (b.height - b.vals[col-diff]))
-}
-
-func (b *BarPrinter) render() {
-	b.printBlock(b.top)
-	b.printRule("_")
-	b.printAllLines()
-	b.printRule("_")
-	b.printBlock(b.top)
-	b.writer.Flush()
 }
 
 func (b *BarPrinter) printBlock(n int) {
