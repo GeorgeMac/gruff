@@ -43,7 +43,7 @@ func main() {
 		for i := 0; i < duration; i++ {
 			count := math.Floor(math.Sin(float64(i)/float64(height))*(float64(height)/2)) + (float64(height) / 2)
 			ints <- int(count)
-			time.Sleep(80 * time.Millisecond)
+			time.Sleep(10 * time.Millisecond)
 		}
 		close(stop)
 	}()
